@@ -1,17 +1,32 @@
-const express = require('express')
-const connectDB = require('./config/connection')
-const app = express()
-const port = 3000
-const ProductRoutes = require('./controllers')
+const express = require('express');
+const router = express.Router();
 
+const User = require('../models/user');
+const hash = require('../helpers/password');
 
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+// REGISTER
+router.post('/register', async (req, res, next) => {
+  try {
+    const { username, password } = req.body;
 
-app.use('/', ProductRoutes)
+    if (!username || !password) {
+      return res.status(400).json({ message: 'username dan password wajib diisi' });
+    }
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
+    const existing = await User.findOne({ username });
+    if (existing) {
+      return res.status(409).json({ message: 'username sudah digunakan' });
+    }
 
-connectDB()
+    const hashedPassword = await hash.hashPassword(password);
+
+    const newUser = new User({ username, password: hashedPassword });
+    await newUser.save();
+
+    return res.status(201).json({ message: 'User registered successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+module.exports = router;
